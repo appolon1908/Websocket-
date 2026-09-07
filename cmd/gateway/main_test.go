@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -137,7 +138,7 @@ func TestShutdownClosesUpgradedConnections(t *testing.T) {
 	streamStarted := make(chan struct{})
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/consume") {
-			jsonResponse(w, http.StatusOK, principal{Active: true, TenantID: "tenant-1", CampaignID: "campaign-1", AgentID: "agent-1", ExpiresAt: time.Now().Add(time.Minute)})
+			jsonResponse(w, http.StatusOK, principal{Active: true, TenantID: "tenant-1", CampaignID: "campaign-1", AgentID: "agent-1", Role: "telephony_agent", ExpiresAt: time.Now().Add(time.Minute)})
 			return
 		}
 		close(streamStarted)
@@ -171,5 +172,60 @@ func TestShutdownClosesUpgradedConnections(t *testing.T) {
 	err = <-clientClosed
 	if websocket.CloseStatus(err) != websocket.StatusGoingAway {
 		t.Fatalf("close status=%v err=%v", websocket.CloseStatus(err), err)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return fn(request)
+}
+
+func TestTicketAuthorityOutageIsRetryable(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("middleware unavailable")
+	})}
+	s := newServer(config{
+		middlewareURL:  "http://middleware.invalid",
+		serviceToken:   "service",
+		origins:        map[string]struct{}{"https://odoo.codestra.co": {}},
+		maxConnections: 1,
+	}, client)
+	r := httptest.NewRequest(http.MethodGet, "/ws/agent?ticket="+strings.Repeat("x", 32), nil)
+	r.Header.Set("Origin", "https://odoo.codestra.co")
+	w := httptest.NewRecorder()
+	s.agent(w, r)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("got %d want %d: %s", w.Code, http.StatusServiceUnavailable, w.Body.String())
+	}
+	if w.Header().Get("Retry-After") != "1" {
+		t.Fatalf("Retry-After=%q", w.Header().Get("Retry-After"))
+	}
+}
+
+func TestRejectedTicketRemainsUnauthorized(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusGone)
+	}))
+	defer upstream.Close()
+	s := newServer(config{
+		middlewareURL:  upstream.URL,
+		serviceToken:   "service",
+		origins:        map[string]struct{}{"https://odoo.codestra.co": {}},
+		maxConnections: 1,
+	}, upstream.Client())
+	r := httptest.NewRequest(http.MethodGet, "/ws/agent?ticket="+strings.Repeat("x", 32), nil)
+	r.Header.Set("Origin", "https://odoo.codestra.co")
+	w := httptest.NewRecorder()
+	s.agent(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("got %d want %d: %s", w.Code, http.StatusUnauthorized, w.Body.String())
+	}
+}
+
+func TestFinalProtectedContractDigest(t *testing.T) {
+	const expected = "b39cdffe56a8185c91174228f0423df68b1137f34875f6ee52f9914f904bf724"
+	if contractDigest != expected {
+		t.Fatalf("contract digest=%s want=%s", contractDigest, expected)
 	}
 }

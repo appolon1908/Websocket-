@@ -23,7 +23,9 @@ import (
 	"github.com/coder/websocket"
 )
 
-const contractDigest = "856f55ce980fe661a6a326c1a70207496f0eb3fc4bc335141e874c075b5a7e93"
+const contractDigest = "b39cdffe56a8185c91174228f0423df68b1137f34875f6ee52f9914f904bf724"
+
+var errTicketDenied = errors.New("ticket denied")
 
 type config struct {
 	listen, middlewareURL, serviceToken, sourceSHA, imageDigest string
@@ -194,7 +196,16 @@ func (s *server) agent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p, err := s.consumeTicket(r.Context(), ticket)
-	if err != nil || !p.Active || p.ExpiresAt.Before(time.Now()) || p.TenantID == "" || p.CampaignID == "" || p.AgentID == "" {
+	if err != nil {
+		if errors.Is(err, errTicketDenied) {
+			s.reject(w, "ticket denied", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Retry-After", "1")
+		s.reject(w, "ticket authority unavailable; obtain a new ticket before retry", http.StatusServiceUnavailable)
+		return
+	}
+	if !p.Active || p.ExpiresAt.Before(time.Now()) || p.TenantID == "" || p.CampaignID == "" || p.AgentID == "" || (p.Role != "telephony_agent" && p.Role != "telephony_supervisor") {
 		s.reject(w, "ticket denied", http.StatusUnauthorized)
 		return
 	}
@@ -247,7 +258,10 @@ func (s *server) agent(w http.ResponseWriter, r *http.Request) {
 	}()
 	for {
 		select {
-		case data := <-reads:
+		case data, ok := <-reads:
+			if !ok {
+				return
+			}
 			if subtle.ConstantTimeCompare(data, []byte("ping")) == 1 {
 				if !s.write(c, []byte("pong")) {
 					return
@@ -292,6 +306,7 @@ func (s *server) streamEvents(ctx context.Context, p principal) (<-chan []byte, 
 		req.Header.Set("X-Tenant-ID", p.TenantID)
 		req.Header.Set("X-Campaign-ID", p.CampaignID)
 		req.Header.Set("X-Agent-ID", p.AgentID)
+		req.Header.Set("X-Role", p.Role)
 		resp, err := s.client.Do(req)
 		if err != nil {
 			errs <- err
@@ -359,7 +374,12 @@ func (s *server) consumeTicket(ctx context.Context, ticket string) (principal, e
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
-		return principal{}, fmt.Errorf("ticket consume status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict, http.StatusGone:
+			return principal{}, errTicketDenied
+		default:
+			return principal{}, fmt.Errorf("ticket authority status %d", resp.StatusCode)
+		}
 	}
 	var p principal
 	if err = json.NewDecoder(io.LimitReader(resp.Body, 8192)).Decode(&p); err != nil {
