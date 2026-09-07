@@ -1,0 +1,3 @@
+import {runtime} from "./runtime";
+export interface FeatureFlags { phone:boolean; crm:boolean; leadDetails:boolean; aiAssistant:boolean; disposition:boolean; callbacks:boolean; supervisor:boolean; diagnostics:boolean; notifications:boolean; settings:boolean; liveTelephony:boolean; liveOdoo:boolean; liveAi:boolean; liveSupervisor:boolean; controlledTransfers:boolean; }
+export const features: FeatureFlags = { phone:true, crm:true, leadDetails:true, aiAssistant:true, disposition:true, callbacks:true, supervisor:true, diagnostics:true, notifications:true, settings:true, liveTelephony:!runtime.safeMode&&runtime.sipEnabled&&runtime.webRtcEnabled, liveOdoo:!runtime.safeMode&&runtime.odooEnabled, liveAi:false, liveSupervisor:false, controlledTransfers:false };

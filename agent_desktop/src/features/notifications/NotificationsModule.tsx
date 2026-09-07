@@ -1,0 +1,2 @@
+import {Card} from "../../components/Card";import type {Notification} from "../../types/desktop";
+export function NotificationsModule({items}:{items:Notification[]}){return <Card title="Notifications" action={<span className="count">{items.filter(x=>!x.read).length}</span>}><div className="notifications">{items.map(x=><div className={x.level} key={x.id}><span>{x.message}</span><small>{x.time}</small></div>)}</div></Card>}

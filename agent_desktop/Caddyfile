@@ -1,0 +1,15 @@
+:8080 {
+    root * /usr/share/caddy
+    encode zstd gzip
+    try_files {path} /index.html
+    file_server
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        Cache-Control "no-store"
+        Permissions-Policy "camera=(), geolocation=(), microphone=(self)"
+        Content-Security-Policy "default-src 'self'; connect-src 'self' wss://wss.codestra.agency:8089 wss://api.codestra.agency; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+    }
+}

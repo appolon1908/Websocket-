@@ -1,0 +1,99 @@
+name: codestra-websocket-gateway
+services:
+  postgres:
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: codestra_realtime
+      POSTGRES_USER: codestra_realtime
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - realtime_postgres:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codestra_realtime -d codestra_realtime"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"]
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+        reservations: {memory: 128M}
+
+  gateway:
+    image: ${GATEWAY_IMAGE:?set immutable gateway image}@${GATEWAY_DIGEST:?set gateway digest}
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      INTERNAL_TOKEN_FILE: /run/secrets/internal_token
+      KEYCLOAK_ISSUER: https://auth.codestra.co/realms/codestra
+      KEYCLOAK_AUDIENCE: codestra-agent-desktop
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/codestra/protocol/openid-connect/certs
+      PUBLIC_WS_URL: wss://api.codestra.agency/ws/agent
+      ALLOWED_ORIGINS: https://crm.codestra.agency,https://phone.codestra.agency,https://dialer.codestra.agency
+      NATS_HOST: host.docker.internal
+      NATS_PORT: "4222"
+      INTERNAL_EVENT_SOURCE_HEALTH_URL: http://middleware:8095/health
+      TICKET_TTL_SECONDS: "45"
+      WS_AUTH_TIMEOUT_SECONDS: "5"
+      MAX_PENDING_MESSAGES: "100"
+      MAX_MESSAGE_SIZE: "65536"
+      WRITE_TIMEOUT_SECONDS: "3"
+    secrets: [database_url, internal_token]
+    networks: [backend, edge, identity]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    user: "10001:10001"
+    init: true
+    stop_grace_period: 15s
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 256M}
+        reservations: {memory: 64M}
+
+  migrate:
+    image: ${GATEWAY_IMAGE:?set immutable gateway image}@${GATEWAY_DIGEST:?set gateway digest}
+    command: ["python", "migrate.py", "up"]
+    restart: "no"
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+    secrets: [database_url]
+    networks: [backend]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    user: "10001:10001"
+
+secrets:
+  postgres_password:
+    file: /etc/codestra/secrets/websocket-gateway/postgres_password
+  database_url:
+    file: /etc/codestra/secrets/websocket-gateway/database_url
+  internal_token:
+    file: /etc/codestra/secrets/websocket-gateway/internal_token
+volumes:
+  realtime_postgres:
+networks:
+  backend:
+    external: true
+    name: codestra_backend
+  edge:
+    external: true
+    name: codestra_edge
+  identity:
+    external: true
+    name: codestra-identity_identity_service

@@ -1,0 +1,81 @@
+name: Imported WebSocket components CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: imported-components-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  imported-components:
+    name: imported-${{ matrix.component }}-${{ matrix.source }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        source: [head, merge]
+        component: [python-gateway, agent-desktop]
+    env:
+      EXPECTED_SHA: ${{ matrix.source == 'head' && github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Check out exact source or merge result
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify immutable clean source and preserved legacy snapshot
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain)"
+          (cd legacy/codestra-srl/source && sha256sum --check MANIFEST.sha256)
+      - name: Set up Python
+        if: matrix.component == 'python-gateway'
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Validate imported Python gateway without live dependencies
+        if: matrix.component == 'python-gateway'
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --require-hashes -r websocket_gateway/requirements.lock
+          python -m pip install pytest==9.0.2
+          python -m pip check
+          python -m pytest -q -p no:cacheprovider websocket_gateway/test_gateway.py websocket_gateway/test_migrations.py
+      - name: Set up Node
+        if: matrix.component == 'agent-desktop'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: agent_desktop/package-lock.json
+      - name: Validate imported desktop without provider connections
+        if: matrix.component == 'agent-desktop'
+        working-directory: agent_desktop
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Reject tracked source drift
+        run: |
+          set -Eeuo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          printf 'VALIDATED_SOURCE_SHA=%s\n' "$EXPECTED_SHA"
+          printf '%s\n' 'PRODUCTION_DEPLOYED=NO' 'EXTERNAL_DELIVERY=NO'
