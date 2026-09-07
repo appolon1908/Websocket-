@@ -1,14 +1,73 @@
 name: exact-head-ci
-on: [push, pull_request]
-permissions: {contents: read}
+
+on:
+  push:
+    branches:
+      - main
+      - feat/agent-realtime-gateway-issue-257
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   test-build:
-    runs-on: ubuntu-latest
+    name: test-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      CONTRACT_DIGEST: b39cdffe56a8185c91174228f0423df68b1137f34875f6ee52f9914f904bf724
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with: {go-version: "1.23.x", cache: true}
-      - run: go test -race ./...
-      - run: go vet ./...
-      - run: go build ./cmd/gateway
-      - run: docker build -t codestra-agent-realtime:${{ github.sha }} .
+      - name: Check out exact reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove exact source identity
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up exact Go toolchain
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: "1.23.0"
+          cache: true
+
+      - name: Validate protected contract and immutable image sources
+        run: |
+          set -Eeuo pipefail
+          test -s go.sum
+          grep -R --fixed-strings "${CONTRACT_DIGEST}" cmd/gateway/main.go README.md
+          ! grep -R -E '856f55ce|0f3d2173|41b7e189' cmd/gateway README.md
+          grep -Eq '^FROM mirror\.gcr\.io/library/golang:1\.23-alpine@sha256:[0-9a-f]{64} AS build$' Dockerfile
+          grep -Eq '^FROM gcr\.io/distroless/static-debian12:nonroot@sha256:[0-9a-f]{64}$' Dockerfile
+          test "$(grep -c '^FROM ' Dockerfile)" -eq 2
+
+      - name: Test, vet, and compile
+        run: |
+          set -Eeuo pipefail
+          go mod verify
+          go test -race -count=1 ./...
+          go vet ./...
+          CGO_ENABLED=0 go build -trimpath -o /tmp/gateway ./cmd/gateway
+
+      - name: Build exact immutable non-root image without publishing
+        run: |
+          set -Eeuo pipefail
+          docker build --pull=false \
+            --label "org.opencontainers.image.revision=${EXPECTED_SHA}" \
+            --tag "codestra-agent-realtime:${EXPECTED_SHA}" .
+          test "$(docker image inspect --format '{{.Config.User}}' "codestra-agent-realtime:${EXPECTED_SHA}")" = "65532:65532"
+          docker image inspect "codestra-agent-realtime:${EXPECTED_SHA}" >/dev/null
+          test -z "$(git status --porcelain)"
