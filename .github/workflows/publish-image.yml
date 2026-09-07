@@ -14,8 +14,10 @@ on:
   workflow_dispatch:
 
 permissions:
+  id-token: write
   contents: read
   packages: write
+  attestations: write
 
 concurrency:
   group: websocket-image-${{ github.ref }}
@@ -68,6 +70,13 @@ jobs:
           MUTABLE_TAG_AUTHORITY=false
           EOF
           cat image-evidence/published-image.txt
+
+      - name: Sign and publish build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
       - name: Upload image evidence
         uses: actions/upload-artifact@v4
