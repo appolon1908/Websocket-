@@ -2,9 +2,9 @@
 
 This repository is included in the shared design for **63 repositories and 17 monitoring components**. Its assigned profile is `runtime-or-website`. Runtime coverage is **unverified** until release and telemetry evidence are recorded.
 
-- [Complete architecture and rollout design](https://github.com/appolon1908-hue/Infustruction-repo/blob/docs/integrated-monitoring-design/INTEGRATED-MONITORING-DESIGN.md)
-- [36-operation Middleware implementation](https://github.com/appolon1908-hue/Middleware-/tree/feat/integrated-monitoring-36-operations/app/monitoring)
-- [Executable API contract](https://github.com/appolon1908-hue/Middleware-/blob/feat/integrated-monitoring-36-operations/contracts/observability/integrated-monitoring.openapi.json)
+- [Complete architecture and rollout design](https://github.com/appolon1908-hue/Infustruction-repo/blob/afeea11b86d296874ec12ce6e8615400240bc72f/INTEGRATED-MONITORING-DESIGN.md)
+- [36-operation Middleware implementation](https://github.com/appolon1908-hue/Middleware-/tree/cedaa23b89f84f365ae6789413411c3f01516952/app/monitoring)
+- [Executable API contract](https://raw.githubusercontent.com/appolon1908-hue/Middleware-/cedaa23b89f84f365ae6789413411c3f01516952/contracts/observability/integrated-monitoring.openapi.json)
 - Local machine-readable onboarding record: [monitoring-integration.v1.json](monitoring-integration.v1.json)
 
 Middleware owns the monitoring API and remains the cross-system operational write boundary. Prometheus owns metrics, Loki logs, Tempo traces, Alertmanager routing, Backstage catalog discovery, Sentry application errors and Wazuh security observations. Grafana provides operational drilldowns. These responsibilities extend the existing collection pipeline without creating another writer or duplicating collectors.
