@@ -1,0 +1,39 @@
+schema_version: 1
+workstation:
+  name: "Websocket- Workstation"
+  primary_repository: "appolon1908/Websocket-"
+  codex_environment_policy: "one repository per environment"
+connectors:
+  notion:
+    status: "connected"
+    portfolio_control_plane: "https://app.notion.com/p/3ed7518c3e0681a99aeccc503c96742c"
+    repositories_database: "https://app.notion.com/p/16653d38ded14c50afed78e98046107b"
+    repository_lookup_key: "Websocket-"
+  linear:
+    status: "connected"
+    execution_project: "https://linear.app/passion-fruit/project/codestra-api-workstation-cross-repo-readiness-ac4681283417"
+    registry: "https://linear.app/passion-fruit/document/113-repository-integration-registry-0edc34d347b5"
+    repository_lookup_key: "Websocket-"
+  lucid:
+    status: "connected"
+    master_architecture: "https://lucid.app/lucidchart/e264ad2d-7a61-42a6-b140-875b618f209c/edit"
+    repository_flowchart_folder: "Codestra — 113 Repository Flowcharts"
+    repository_lookup_key: "Websocket-"
+    repository_diagram: "https://lucid.app/lucidchart/c3b52c78-a513-44f9-af7b-000b288edee5/edit"
+workflow:
+  before_implementation:
+    - "Read AGENTS.md."
+    - "Read .codestra/repository-profile.yaml."
+    - "Read .codestra/workstation-integrations.yaml."
+    - "Check Linear for the current task, blocker, and next action."
+    - "Check Notion for durable architecture and decisions."
+    - "Check the matching Lucid diagram for system boundaries and flow."
+  after_implementation:
+    - "Update Linear execution state and blockers."
+    - "Record durable architecture/decision changes in Notion."
+    - "Update Lucid when architecture, flow, or repository boundaries change."
+authority:
+  github: "code, branch, SHA, PR and CI truth"
+  linear: "execution, priority, blocker and next-action truth"
+  notion: "architecture, decisions and continuity truth"
+  lucid: "visual architecture, flow and boundary truth"
