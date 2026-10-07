@@ -1,0 +1,44 @@
+repository: appolon1908/Websocket-
+governance_branch: workstation/governance-control-plane
+promotion_chain: [development, testing, staging, production]
+workstations:
+  - branch: workstation/dev-desktop
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/governance-control-plane
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/ws01-core
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/ws02-api
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/ws03-security
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/ws04-deployment
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/ws05-observability
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/ws06-testing
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/ws07-saas
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]
+  - branch: workstation/ws08-release
+    kind: section
+    status: NOT_STARTED
+    required_gates: [lint, unit, integration, contract, security, clean_tree, remote_sha_match, ci_exact_sha, review]

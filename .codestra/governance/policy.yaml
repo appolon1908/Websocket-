@@ -1,0 +1,22 @@
+version: 1
+hierarchy: [atomic_task, subsection, section, development, testing, staging, production]
+allowed_promotions:
+  subsection: section
+  section: development
+  development: testing
+  testing: staging
+  staging: production
+lease:
+  ttl_minutes: 60
+  heartbeat_minutes: 10
+  stale_warning_minutes: 30
+states: [NOT_STARTED, CLAIMED, IN_PROGRESS, BLOCKED, REVIEW, COMPLETE, CERTIFIED]
+production_effects:
+  PRODUCTION_GO: "NO"
+  LIVE_CAPABILITIES_ENABLED: "NO"
+  EXTERNAL_EFFECTS: "false"
+certification:
+  exact_sha_required: true
+  independent_review_required: true
+  clean_tree_required: true
+  local_remote_sha_match_required: true
