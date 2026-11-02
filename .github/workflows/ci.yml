@@ -6,8 +6,6 @@ on:
       - main
       - feat/agent-realtime-gateway-issue-257
   pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "policy_kind": "source_merge",
+  "repository": "appolon1908/Websocket-",
+  "authorization_date": "2026-11-02",
+  "required_checks": [
+    {
+      "context": "test-build",
+      "integration_id": 15368,
+      "workflow": ".github/workflows/ci.yml"
+    },
+    {
+      "context": "imported-python-gateway-head",
+      "integration_id": 15368,
+      "workflow": ".github/workflows/imported-components-ci.yml"
+    },
+    {
+      "context": "imported-python-gateway-merge",
+      "integration_id": 15368,
+      "workflow": ".github/workflows/imported-components-ci.yml"
+    },
+    {
+      "context": "imported-agent-desktop-head",
+      "integration_id": 15368,
+      "workflow": ".github/workflows/imported-components-ci.yml"
+    },
+    {
+      "context": "imported-agent-desktop-merge",
+      "integration_id": 15368,
+      "workflow": ".github/workflows/imported-components-ci.yml"
+    }
+  ],
+  "replaces_contexts": [
+    "codestra-control-plane",
+    "codestra/control-plane"
+  ],
+  "preserve": [
+    "other_required_checks",
+    "review_requirements",
+    "ref_conditions",
+    "bypass_actors",
+    "enforcement",
+    "force_push_protection",
+    "deletion_protection",
+    "deployment_authority"
+  ],
+  "production_activation_authorized": false,
+  "note": "GitHub rulesets remain the enforcement authority. This source-validation policy is not custom-controller certification or deployment authorization."
+}
